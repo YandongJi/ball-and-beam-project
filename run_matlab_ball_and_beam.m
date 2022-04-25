@@ -3,7 +3,7 @@ clear all
 
 %% General Settings.
 % Initial state.
-x0 = [-0.19; 0.00; 0; 0];
+x0 = [-0.19; 0.1; 0.1; 0.1];
 t0 = 0;
 % Simulation time.
 T = 10;
@@ -19,6 +19,7 @@ plot_animation = true;
 save_video = false;
 
 controller_handle = studentControllerInterface();
+observer_handle = observer();
 u_saturation = 10;
 
 % Initialize traces.
@@ -34,13 +35,61 @@ ref_vs = v_ball_ref;
 x = x0;
 t = t0;
 end_simulation = false;
+u=0.0;
+
+% dynamics definition:
+g = 9.81;
+r_arm = 0.0254;
+L = 0.4255;
+a = 5 * g * r_arm / (7 * L);
+b = (5 * L / 14) * (r_arm / L)^2;
+c = (5 / 7) * (r_arm / L)^2;
+K = 10;
+tau = 0.1;
+
+% system dynamics
+syms x1 x2 x3 x4 z1;
+h=x1;
+f = [x2;
+    a * sin(x3) - b * x4^2 * cos(x3)^2 + c * x1 * x4^2 * cos(x3)^2;
+    x4;
+    -x4/tau + K/tau*z1;
+    0.0];
+g = [0.0;
+    0.0;
+    0.0;
+    0.0;
+    1.0];
+lfh = [diff(h,x1); diff(h,x2); diff(h,x3); diff(h,x4); diff(h,z1)]' * f;
+lf2h = [diff(lfh,x1); diff(lfh,x2); diff(lfh,x3); diff(lfh,x4); diff(lfh,z1)]' * f;
+lf3h = [diff(lf2h,x1); diff(lf2h,x2); diff(lf2h,x3); diff(lf2h,x4); diff(lf2h,z1)]' * f;
+lf4h = [diff(lf3h,x1); diff(lf3h,x2); diff(lf3h,x3); diff(lf3h,x4); diff(lf3h,z1)]' * f;
+lglf3h = [diff(lf3h,x1); diff(lf3h,x2); diff(lf3h,x3); diff(lf3h,x4); diff(lf3h,z1)]' * g
+
+% observer dynamics
+q=[x1+x2*dt;
+    x2+(a * sin(x3) - b * x4^2 * cos(x3)^2 + c * x1 * x4^2 * cos(x3)^2)*dt;
+    x3 + x4 * dt;
+    x4+(-x4/tau+K/tau*z1)*dt
+    ];
+A_sym = [diff(q,x1),diff(q,x2),diff(q,x3),diff(q,x4)];
+Pm=[0.5,0.0,0.0,0.0;
+    0.0,0.5,0.0,0.0;
+    0.0,0.0,0.5,0.0;
+    0.0,0.0,0.0,0.5];
 %% Run simulation.
 % _t indicates variables for the current loop.
 tstart = tic;
 while ~end_simulation
     %% Determine control input.
-    tstart = tic; % DEBUG    
-    [u, theta_d] = controller_handle.stepController(t, x(1), x(3));
+    tstart = tic; % DEBUG 
+    % Update observer   
+    [obs_pos, obs_vel, obs_theta, obs_dtheta, Pm] = observer_handle.process_meas(q,A_sym,Pm,u, x(1),x(3));
+
+    % Controller step
+    lglf3h_subs = vpa(subs(lglf3h,{x1,x2,x3,x4,z1},{obs_pos, obs_vel, obs_theta, obs_dtheta,u}));
+    lf4h_subs = vpa(subs(lf4h,{x1,x2,x3,x4,z1},{obs_pos, obs_vel, obs_theta, obs_dtheta,u}));
+    [u, theta_d] = controller_handle.stepController(t, lglf3h_subs, lf4h_subs, obs_pos, obs_vel);
     u = min(u, u_saturation);
     u = max(u, -u_saturation);
     if verbose
@@ -67,7 +116,10 @@ while ~end_simulation
     ref_vs = [ref_vs, v_ball_ref];    
 end % end of the main while loop
 %% Add control input for the final timestep.
-[u, theta_d] = controller_handle.stepController(t, x(1), x(3));
+lglf3h_subs = vpa(subs(lglf3h,{x1,x2,x3,x4,z1},{obs_pos, obs_vel, obs_theta, obs_dtheta,u}));
+lf4h_subs = vpa(subs(lf4h,{x1,x2,x3,x4,z1},{obs_pos, obs_vel, obs_theta, obs_dtheta,u}));
+[u, theta_d] = controller_handle.stepController(t, lglf3h_subs, lf4h_subs, obs_pos, obs_vel);
+
 u = min(u, u_saturation);
 u = max(u, -u_saturation);
 us = [us, u];

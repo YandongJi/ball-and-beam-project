@@ -7,13 +7,12 @@ classdef studentControllerInterface < matlab.System
         theta_d = 0;
         extra_dummy1 = 0;
         extra_dummy2 = 0;
+
+        alpha1 = 1.0;
+        alpha2 = 0.1;
     end
     methods(Access = protected)
-        % function setupImpl(obj)
-        %    disp("You can use this function for initializaition.");
-        % end
-
-        function V_servo = stepImpl(obj, t, p_ball, theta)
+        function V_servo = stepImpl(obj, t, lglf3h, lf4h,p_ball,v_ball)
         % This is the main function called every iteration. You have to implement
         % the controller in this function, bu you are not allowed to
         % change the signature of this function. 
@@ -25,6 +24,7 @@ classdef studentControllerInterface < matlab.System
         % Output:
         %   V_servo: voltage to the servo input.        
             %% Sample Controller: Simple Proportional Controller
+            t
             t_prev = obj.t_prev;
             % Extract reference trajectory at the current timestep.
             [p_ball_ref, v_ball_ref, a_ball_ref] = get_ref_traj(t);
@@ -41,8 +41,8 @@ classdef studentControllerInterface < matlab.System
 
             % Simple position control to control servo angle to the desired
             % position.
-            k_servo = 10;
-            V_servo = k_servo * (theta_d - theta);
+            V_servo = 1/lglf3h * (-lf4h + obj.alpha1*(p_ball-p_ball_ref)+obj.alpha2*(v_ball - v_ball_ref));
+            V_servo
             
             % Update class properties if necessary.
             obj.t_prev = t;
@@ -53,8 +53,8 @@ classdef studentControllerInterface < matlab.System
     methods(Access = public)
         % Used this for matlab simulation script. fill free to modify it as
         % however you want.
-        function [V_servo, theta_d] = stepController(obj, t, p_ball, theta)        
-            V_servo = stepImpl(obj, t, p_ball, theta);
+        function [V_servo, theta_d] = stepController(obj, t,  lglf3h, lf4h, p_ball, v_ball)        
+            V_servo = stepImpl(obj, t,  lglf3h, lf4h, p_ball, v_ball);
             theta_d = obj.theta_d;
         end
     end
