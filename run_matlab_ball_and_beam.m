@@ -84,7 +84,7 @@ while ~end_simulation
     %% Determine control input.
     tstart = tic; % DEBUG 
     % Update observer   
-    [obs_pos, obs_vel, obs_theta, obs_dtheta, Pm] = observer_handle.process_meas(q,A_sym,Pm,u, x(1),x(3));
+    [obs_pos, obs_vel, obs_theta, obs_dtheta, Pm] = observer_handle.process_meas(t, Pm,u, x(1),x(3));
 
     % Controller step
     lglf3h_subs = vpa(subs(lglf3h,{x1,x2,x3,x4,z1},{obs_pos, obs_vel, obs_theta, obs_dtheta,u}));
