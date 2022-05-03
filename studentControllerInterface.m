@@ -41,6 +41,12 @@ classdef studentControllerInterface < matlab.System
 
             % Simple position control to control servo angle to the desired
             % position.
+%             p_ball_ref
+%             p_ball
+%             v_ball
+%             v_ball_ref
+%             1/lglf3h
+%             lf4h
             V_servo = 1/lglf3h * (-lf4h + obj.alpha1*(p_ball-p_ball_ref)+obj.alpha2*(v_ball - v_ball_ref));
             V_servo
             

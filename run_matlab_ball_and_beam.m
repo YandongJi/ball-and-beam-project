@@ -48,23 +48,54 @@ K = 10;
 tau = 0.1;
 
 % system dynamics
-syms x1 x2 x3 x4 z1;
-h=x1;
+% syms x1 x2 x3 x4 z1 z2;
+% h=x1+x3;
+% f = [x2;
+%     a * sin(x3) - b * x4^2 * cos(x3)^2 + c * x1 * x4^2 * cos(x3)^2;
+%     x4;
+%     -x4/tau];
+% g = [0.0;
+%     0.0;
+%     0.0;
+%     K/tau];
+% 
+% lfh = [diff(h,x1); diff(h,x2); diff(h,x3); diff(h,x4)]' * f;
+% lf2h = [diff(lfh,x1); diff(lfh,x2); diff(lfh,x3); diff(lfh,x4)]' * f;
+% lf3h = [diff(lf2h,x1); diff(lf2h,x2); diff(lf2h,x3); diff(lf2h,x4)]' * f;
+% lf4h = [diff(lf3h,x1); diff(lf3h,x2); diff(lf3h,x3); diff(lf3h,x4)]' * f;
+% lglf3h = [diff(lf3h,x1); diff(lf3h,x2); diff(lf3h,x3); diff(lf3h,x4)]' * g;
+% 
+% lgh = [diff(h,x1); diff(h,x2); diff(h,x3); diff(h,x4)]' * g
+% lglfh = [diff(lfh,x1); diff(lfh,x2); diff(lfh,x3); diff(lfh,x4)]' * g
+% lglf2h = [diff(lf2h,x1); diff(lf2h,x2); diff(lf2h,x3); diff(lf2h,x4)]' * g
+% lglf3h = [diff(lf3h,x1); diff(lf3h,x2); diff(lf3h,x3); diff(lf3h,x4)]' * g
+
+syms x1 x2 x3 x4 z1 z2;
+h=x1+L*sin(x3);
 f = [x2;
     a * sin(x3) - b * x4^2 * cos(x3)^2 + c * x1 * x4^2 * cos(x3)^2;
     x4;
     -x4/tau + K/tau*z1;
+    z2;
     0.0];
 g = [0.0;
     0.0;
     0.0;
     0.0;
+    0.0
     1.0];
-lfh = [diff(h,x1); diff(h,x2); diff(h,x3); diff(h,x4); diff(h,z1)]' * f;
-lf2h = [diff(lfh,x1); diff(lfh,x2); diff(lfh,x3); diff(lfh,x4); diff(lfh,z1)]' * f;
-lf3h = [diff(lf2h,x1); diff(lf2h,x2); diff(lf2h,x3); diff(lf2h,x4); diff(lf2h,z1)]' * f;
-lf4h = [diff(lf3h,x1); diff(lf3h,x2); diff(lf3h,x3); diff(lf3h,x4); diff(lf3h,z1)]' * f;
-lglf3h = [diff(lf3h,x1); diff(lf3h,x2); diff(lf3h,x3); diff(lf3h,x4); diff(lf3h,z1)]' * g
+
+lfh = [diff(h,x1); diff(h,x2); diff(h,x3); diff(h,x4); diff(h,z1); diff(h,z2)]' * f;
+lf2h = [diff(lfh,x1); diff(lfh,x2); diff(lfh,x3); diff(lfh,x4); diff(lfh,z1); diff(lfh,z2)]' * f;
+lf3h = [diff(lf2h,x1); diff(lf2h,x2); diff(lf2h,x3); diff(lf2h,x4); diff(lf2h,z1); diff(lf2h,z2)]' * f;
+lf4h = [diff(lf3h,x1); diff(lf3h,x2); diff(lf3h,x3); diff(lf3h,x4); diff(lf3h,z1); diff(lf3h,z2)]' * f;
+% lglf3h = [diff(lf3h,x1); diff(lf3h,x2); diff(lf3h,x3); diff(lf3h,x4); diff(lf3h,z1); diff(lf3h,z2)]' * g;
+
+lgh = [diff(h,x1); diff(h,x2); diff(h,x3); diff(h,x4); diff(h,z1); diff(h,z2)]' * g;
+lglfh = [diff(lfh,x1); diff(lfh,x2); diff(lfh,x3); diff(lfh,x4); diff(lfh,z1); diff(lfh,z2)]' * g;
+lglf2h = [diff(lf2h,x1); diff(lf2h,x2); diff(lf2h,x3); diff(lf2h,x4); diff(lf2h,z1); diff(lf2h,z2)]' * g;
+lglf3h = [diff(lf3h,x1); diff(lf3h,x2); diff(lf3h,x3); diff(lf3h,x4); diff(lf3h,z1); diff(lf3h,z2)]' * g;
+
 
 % observer dynamics
 q=[x1+x2*dt;
@@ -80,15 +111,19 @@ Pm=[0.5,0.0,0.0,0.0;
 %% Run simulation.
 % _t indicates variables for the current loop.
 tstart = tic;
+last_t = tstart;
+% dt=0.1;
 while ~end_simulation
     %% Determine control input.
     tstart = tic; % DEBUG 
     % Update observer   
-    [obs_pos, obs_vel, obs_theta, obs_dtheta, Pm] = observer_handle.process_meas(t, Pm,u, x(1),x(3));
+    [obs_pos, obs_vel, obs_theta, obs_dtheta, Pm] = observer_handle.process_meas(q,A_sym,Pm,u, x(1),x(3));
 
     % Controller step
-    lglf3h_subs = vpa(subs(lglf3h,{x1,x2,x3,x4,z1},{obs_pos, obs_vel, obs_theta, obs_dtheta,u}));
-    lf4h_subs = vpa(subs(lf4h,{x1,x2,x3,x4,z1},{obs_pos, obs_vel, obs_theta, obs_dtheta,u}));
+%     dt = tstart - last_t;
+%     dt
+    lglf3h_subs = vpa(subs(lglf3h,{x1,x2,x3,x4,z1,z2},{obs_pos, obs_vel, obs_theta, obs_dtheta,u*dt,u}));
+    lf4h_subs = vpa(subs(lf4h,{x1,x2,x3,x4,z1,z2},{obs_pos, obs_vel, obs_theta, obs_dtheta,u*dt,u}));
     [u, theta_d] = controller_handle.stepController(t, lglf3h_subs, lf4h_subs, obs_pos, obs_vel);
     u = min(u, u_saturation);
     u = max(u, -u_saturation);
@@ -101,6 +136,11 @@ while ~end_simulation
     %% Run simulation for one time step.
     t_end_t = min(t + dt, t0+T);
     ode_opt = odeset('Events', @event_ball_out_of_range);
+%     x
+%     t
+%     u
+%     t_end_t
+%     ode_opt
     [ts_t, xs_t, t_event] = ode_func( ...
         @(t, x) ball_and_beam_dynamics(t, x, u), ...
         [t, t_end_t], x, ode_opt);
@@ -109,6 +149,7 @@ while ~end_simulation
     t = ts_t(end);
     x = xs_t(end, :)';
     %% Record traces.
+    last_t=t;
     xs = [xs, x];
     ts = [ts, t];
     [p_ball_ref, v_ball_ref] = get_ref_traj(t);
